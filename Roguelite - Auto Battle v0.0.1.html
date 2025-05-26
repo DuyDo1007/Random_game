@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roguelite - Auto Battle</title>
+    <style>
+        :root {
+            --border-color: #ccc;
+            --background-color: #fff;
+            --text-color: #333;
+            --primary-color: #4CAF50;
+            --secondary-color: #f44336;
+            --gold-color: #FFD700;
+            --exp-color: #8A2BE2;
+            --upgrade-color: #00BFFF;
+            --button-hover-primary: #3e8e41;
+            --button-hover-secondary: #c4302b;
+            --disabled-color: #ccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column; /* Allow language buttons at top */
+            align-items: center;
+            user-select: none;
+            font-size: 14px;
+        }
+
+        .language-selector {
+            margin-bottom: 15px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        .language-selector button {
+            padding: 8px 12px;
+            margin: 0 5px;
+            border: 1px solid var(--border-color);
+            background-color: #e7e7e7;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .language-selector button.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+
+        .game-container {
+            display: grid;
+            grid-template-columns: 2fr 1.2fr; 
+            gap: 15px;
+            width: 100%;
+            max-width: 1500px; 
+        }
+
+        .left-panel, .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            background-color: #fdfdfd;
+        }
+
+        h2, h3 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+        h3 {
+            font-size: 1.05em;
+        }
+
+        .resources {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            padding: 5px 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        #gold-text { color: var(--gold-color); } 
+        #exp-text { color: var(--exp-color); }   
+        #points-text { color: var(--upgrade-color); } 
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 10px 15px;
+        }
+
+        .stat-category h3 {
+            font-size: 1em;
+            color: var(--primary-color);
+            border: none;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9em;
+        }
+        .stat-item span:first-child {
+            color: #555;
+        }
+        .stat-item span:last-child {
+            font-weight: bold;
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .upgrade-controls, .equipment-controls {
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap; 
+            align-items: center;
+            gap: 5px; 
+        }
+
+        .upgrade-controls label, .equipment-controls label {
+            font-weight: bold;
+            margin-right: 8px;
+            font-size: 0.95em;
+            flex-shrink: 0; 
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 2px; 
+        }
+
+        .btn-group button {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            background-color: #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 0.9em;
+            border-radius: 4px; 
+        }
+        .btn-group button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .upgrade-list .upgrade-item, .equipment-list .equipment-item {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(100px, auto) auto; 
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 5px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+         .upgrade-item:last-child, .equipment-item:last-child {
+            border-bottom: none;
+        }
+        
+        .upgrade-item > span, .equipment-item > span {
+            font-size: 0.9em;
+        }
+        .upgrade-item .item-name, .equipment-item .item-name {
+            font-weight: 500;
+        }
+        .upgrade-item .item-name small, .equipment-item .item-name small {
+            display: block;
+            font-size: 0.85em;
+            color: #777;
+        }
+         .upgrade-item .item-cost, .equipment-item .item-cost {
+            font-size: 0.85em;
+            color: #444;
+        }
+
+
+        .upgrade-btn {
+            padding: 7px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+            font-size: 0.85em;
+        }
+        .upgrade-btn:hover {
+            background-color: var(--button-hover-primary);
+        }
+        .upgrade-btn:disabled {
+            background-color: var(--disabled-color);
+            cursor: not-allowed;
+        }
+
+        .battle-section h2 {
+            text-align: center;
+        }
+
+        .battle-arena {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            text-align: center;
+        }
+
+        .combatant h3 {
+            border: none;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .health-bar-container {
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            height: 28px;
+            position: relative;
+        }
+
+        .health-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 100%;
+            transition: width 0.3s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .health-bar.enemy {
+            background-color: var(--secondary-color);
+        }
+        
+        .health-text {
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.7);
+            font-size: 0.9em;
+        }
+
+        .battle-controls {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .battle-btn {
+            padding: 12px 25px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: var(--secondary-color);
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .battle-btn:hover {
+            background-color: var(--button-hover-secondary);
+        }
+        .battle-btn:disabled {
+            background-color: var(--disabled-color);
+            cursor: not-allowed;
+        }
+
+        .battle-log-container {
+            height: 180px; 
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            margin-top: 15px;
+            background-color: #f9f9f9;
+            font-size: 0.85em;
+        }
+        .battle-log-container p {
+            margin: 0 0 4px 0;
+            line-height: 1.4;
+        }
+        .battle-log-container p:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-card h3, .iap-card h3 {
+            font-size: 1em;
+            color: #333;
+        }
+        .info-card p {
+            margin-bottom: 8px;
+            line-height: 1.5;
+            font-size: 0.9em;
+        }
+        .iap-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        .iap-item .price {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .iap-item .discount {
+            font-size: 0.85em;
+            color: var(--secondary-color);
+        }
+
+        @media (max-width: 1200px) { 
+            .btn-group {
+                flex-basis: 100%; 
+            }
+        }
+        @media (max-width: 900px) {
+            .game-container {
+                grid-template-columns: 1fr; 
+            }
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+        }
+        @media (max-width: 600px) {
+            body { padding: 10px; font-size: 13px;}
+            .card { padding: 10px; }
+            h2 { font-size: 1.3em; padding-bottom: 6px; margin-bottom: 10px;}
+            h3 { font-size: 1em; }
+            .resources { font-size: 1em; }
+            .upgrade-list .upgrade-item, .equipment-list .equipment-item {
+                grid-template-columns: 1fr auto; 
+                gap: 5px;
+            }
+            .battle-btn { padding: 10px 20px; font-size: 1.1em; }
+            .battle-log-container { height: 150px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="language-selector">
+        <button id="lang-vi" class="active">Tiếng Việt</button>
+        <button id="lang-en">English</button>
+    </div>
+
+    <div class="game-container">
+        <div class="left-panel">
+            <div class="card">
+                <h2 id="player-stats-title">Chỉ Số Người Chơi</h2>
+                <div class="resources">
+                    <span id="gold-text">Vàng: 0</span>
+                    <span id="exp-text">KN: 0/50</span>
+                    <span id="points-text">Điểm: 0</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-category">
+                        <h3 id="basic-stats-title">Chỉ Số Cơ Bản</h3>
+                        <div class="stat-item"><span id="max-health-label">Máu Tối Đa:</span> <span id="maxHealth"></span></div>
+                        <div class="stat-item"><span id="damage-label">Sát Thương:</span> <span id="damage"></span></div>
+                        <div class="stat-item"><span id="armor-label">Giáp:</span> <span id="armor"></span></div>
+                        <div class="stat-item"><span id="health-regen-label">Hồi Máu/3s:</span> <span id="healthRegen"></span></div>
+                        <div class="stat-item"><span id="on-hit-heal-label">Hồi Máu Khi Đánh:</span> <span id="onHitHeal"></span></div>
+                    </div>
+                    <div class="stat-category">
+                        <h3 id="advanced-stats-title">Chỉ Số Nâng Cao</h3>
+                        <div class="stat-item"><span id="lifesteal-label">Hút Máu:</span> <span id="lifesteal"></span></div>
+                        <div class="stat-item"><span id="attack-speed-label">Tốc Độ Đánh:</span> <span id="attackSpeed"></span></div>
+                        <div class="stat-item"><span id="thorns-label">Gai Phản Dmg:</span> <span id="thorns"></span></div>
+                        <div class="stat-item"><span id="crit-chance-label">Tỷ Lệ Chí Mạng:</span> <span id="critChance"></span></div>
+                        <div class="stat-item"><span id="crit-damage-label">S.Thương Chí Mạng:</span> <span id="critDamage"></span></div>
+                    </div>
+                    <div class="stat-category">
+                        <h3 id="bonus-progression-title">Thưởng & Tiến Trình</h3>
+                        <div class="stat-item"><span id="gold-bonus-percent-label">Thưởng Vàng (%):</span> <span id="goldBonusPercent"></span></div>
+                        <div class="stat-item"><span id="gold-bonus-flat-label">Thưởng Vàng (Flat):</span> <span id="goldBonusFlat"></span></div>
+                        <div class="stat-item"><span id="exp-bonus-percent-label">Thưởng KN (%):</span> <span id="expBonusPercent"></span></div>
+                        <div class="stat-item"><span id="exp-bonus-flat-label">Thưởng KN (Flat):</span> <span id="expBonusFlat"></span></div>
+                        <div class="stat-item"><span id="point-bonus-percent-label">Thưởng Điểm (%):</span> <span id="pointBonusPercent"></span></div>
+                        <div class="stat-item"><span id="point-bonus-flat-label">Thưởng Điểm (Flat):</span> <span id="pointBonusFlat"></span></div>
+                        <div class="stat-item"><span id="level-label">Cấp Độ:</span> <span id="level"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 id="point-upgrades-title">Nâng Cấp (Bằng Điểm)</h2>
+                <div class="upgrade-controls">
+                    <label id="amount-label-points">Số lượng:</label>
+                    <div class="btn-group" id="upgrade-amount-selector">
+                        <button class="active" data-value="1">x1</button>
+                        <button data-value="5">x5</button>
+                        <button data-value="10">x10</button>
+                        <button data-value="100">x100</button>
+                        <button data-value="1000">x1k</button>
+                        <button data-value="10000">x10k</button>
+                        <button data-value="100000">x100k</button>
+                        <button data-value="1000000">x1M</button>
+                        <button data-value="10000000">x10M</button>
+                        <button data-value="100000000">x100M</button>
+                        <button data-value="1000000000">x1B</button>
+                    </div>
+                </div>
+                <div class="upgrade-list" id="point-upgrades-list">
+                    </div>
+            </div>
+            
+            <div class="card">
+                <h2 id="equipment-upgrades-title">Trang Bị (Bằng Vàng)</h2>
+                 <div class="equipment-controls">
+                    <label id="amount-label-gold">Số lượng:</label>
+                    <div class="btn-group" id="equipment-amount-selector">
+                        <button class="active" data-value="1">x1</button>
+                        <button data-value="5">x5</button>
+                        <button data-value="10">x10</button>
+                        <button data-value="100">x100</button>
+                        <button data-value="1000">x1k</button>
+                        <button data-value="10000">x10k</button>
+                        <button data-value="100000">x100k</button>
+                        <button data-value="1000000">x1M</button>
+                        <button data-value="10000000">x10M</button>
+                        <button data-value="100000000">x100M</button>
+                        <button data-value="1000000000">x1B</button>
+                    </div>
+                </div>
+                <div class="equipment-list" id="equipment-list">
+                    </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="card battle-section">
+                <h2 id="floor-title">Tầng 1</h2>
+                <div class="battle-arena">
+                    <div class="combatant" id="player-combatant">
+                        <h3 id="player-name-battle">Người Chơi</h3>
+                        <div class="health-bar-container">
+                            <div class="health-bar" id="player-health-bar"></div>
+                            <div class="health-text" id="player-health-text"></div>
+                        </div>
+                    </div>
+                    <div class="combatant" id="enemy-combatant">
+                        <h3 id="enemy-name"></h3>
+                        <div class="health-bar-container">
+                             <div class="health-bar enemy" id="enemy-health-bar"></div>
+                             <div class="health-text" id="enemy-health-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="battle-controls">
+                    <button class="battle-btn" id="fight-btn">Bắt Đầu</button>
+                </div>
+                <div class="battle-log-container" id="battle-log">
+                    </div>
+            </div>
+            
+            <div class="card info-card">
+                <h3 id="game-info-title">Giới Thiệu Rogue-Lite-Ultimate</h3>
+                <p id="game-info-p1">Đây là một trò chơi bán nhàn rỗi với lối chơi siêu đơn giản. Công việc của bạn chỉ là nhấp chuột vào các mục như chiến đấu và nâng cấp nhân vật, phần còn lại sẽ do hệ thống tự động chiến đấu hoàn tất.</p>
+                <p><strong id="game-info-genre-label">Thể loại:</strong> <span id="game-info-genre">Roguelite, Auto Battler, Clicker, Text Based, Incremental.</span></p>
+                <p id="game-info-p2">Trò chơi này giới thiệu một thể loại hoàn toàn mới: <strong>Rogue - Lite - Ultimate</strong>. Khác với các trò chơi roguelite truyền thống, trò chơi này cho phép cả bạn và kẻ thù tăng tiến sức mạnh vô hạn. Không có giới hạn về chỉ số hay kỹ năng, cho phép bạn trở nên cực kỳ mạnh mẽ ở giai đoạn cuối game. Hãy quên đi những trò chơi mà nhà phát triển giới hạn sức mạnh của người chơi; ở đây, bạn có thể tăng sức mạnh vô hạn miễn là bạn chăm chỉ cày cuốc.</p>
+                <p id="game-info-p3">Các con số trong trò chơi này có thể đạt đến mức khổng lồ—hàng tỷ sát thương, máu và giáp. Thiết kế cực nhẹ giúp bạn có thể vừa chơi vừa làm việc khác mà không lo giật lag.</p>
+            </div>
+
+            <div class="card iap-card">
+                <h3 id="iap-title"> Mua Gói Trong Game (IAP)</h3>
+                <p id="iap-desc">Chỉ có một gói đăng ký duy nhất để loại bỏ quảng cáo:</p>
+                <div class="iap-item">
+                    <div>
+                        <strong id="iap-1month-label">Gói 1 Tháng</strong>
+                        <div class="discount" id="iap-1month-discount">Giảm giá 5%</div>
+                    </div>
+                    <span class="price">$4.99</span>
+                </div>
+                <div class="iap-item">
+                    <div>
+                        <strong id="iap-2month-label">Gói 2 Tháng</strong>
+                        <div class="discount" id="iap-2month-discount">Giảm giá 10%</div>
+                    </div>
+                     <span class="price">$9.99</span>
+                </div>
+                <div class="iap-item">
+                     <div>
+                        <strong id="iap-3month-label">Gói 3 Tháng</strong>
+                        <div class="discount" id="iap-3month-discount">Giảm giá 15%</div>
+                    </div>
+                    <span class="price">$14.99</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- UTILITY FUNCTIONS ---
+    const formatNumber = (num) => {
+        const suffixes = [
+            { value: 1e27, symbol: "Oc" }, { value: 1e24, symbol: "Sp" },
+            { value: 1e21, symbol: "Sx" }, { value: 1e18, symbol: "Qi" },
+            { value: 1e15, symbol: "Qa" }, { value: 1e12, symbol: "T" },
+            { value: 1e9,  symbol: "B" },  { value: 1e6,  symbol: "M" },
+            { value: 1e3,  symbol: "K" }
+        ];
+        for (let i = 0; i < suffixes.length; i++) {
+            if (Math.abs(num) >= suffixes[i].value) { 
+                return (num / suffixes[i].value).toFixed(2) + suffixes[i].symbol;
+            }
+        }
+        return Math.round(num).toString();
+    };
+
+     const formatMultiplier = (num) => { 
+        if (num >= 1e9) return (num / 1e9) + 'B';
+        if (num >= 1e6) return (num / 1e6) + 'M';
+        if (num >= 1e3) return (num / 1e3) + 'k';
+        return num.toString();
+    };
+
+    // --- LANGUAGE STRINGS ---
+    const languageStrings = {
+        vi: {
+            playerStatsTitle: "Chỉ Số Người Chơi",
+            gold: "Vàng",
+            exp: "KN",
+            points: "Điểm",
+            basicStatsTitle: "Chỉ Số Cơ Bản",
+            maxHealthLabel: "Máu Tối Đa:",
+            damageLabel: "Sát Thương:",
+            armorLabel: "Giáp:",
+            healthRegenLabel: "Hồi Máu/3s:",
+            onHitHealLabel: "Hồi Máu Khi Đánh:",
+            advancedStatsTitle: "Chỉ Số Nâng Cao",
+            lifestealLabel: "Hút Máu:",
+            attackSpeedLabel: "Tốc Độ Đánh:",
+            thornsLabel: "Gai Phản Dmg:",
+            critChanceLabel: "Tỷ Lệ Chí Mạng:",
+            critDamageLabel: "S.Thương Chí Mạng:",
+            bonusProgressionTitle: "Thưởng & Tiến Trình",
+            goldBonusPercentLabel: "Thưởng Vàng (%):",
+            goldBonusFlatLabel: "Thưởng Vàng (Flat):",
+            expBonusPercentLabel: "Thưởng KN (%):",
+            expBonusFlatLabel: "Thưởng KN (Flat):",
+            pointBonusPercentLabel: "Thưởng Điểm (%):",
+            pointBonusFlatLabel: "Thưởng Điểm (Flat):",
+            levelLabel: "Cấp Độ:",
+            pointUpgradesTitle: "Nâng Cấp (Bằng Điểm)",
+            equipmentUpgradesTitle: "Trang Bị (Bằng Vàng)",
+            amountLabel: "Số lượng:",
+            floorTitle: "Tầng {floor}",
+            playerNameBattle: "Người Chơi",
+            enemyNameDefault: "Kẻ Địch",
+            waitingEnemy: "Đang chờ...",
+            fightBtnStart: "Bắt Đầu",
+            fightBtnInProgress: "Đang Chiến Đấu...",
+            fightBtnNext: "Tầng Tiếp Theo",
+            gameInfoTitle: "Giới Thiệu Rogue-Lite-Ultimate",
+            gameInfoP1: "Đây là một trò chơi bán nhàn rỗi với lối chơi siêu đơn giản. Công việc của bạn chỉ là nhấp chuột vào các mục như chiến đấu và nâng cấp nhân vật, phần còn lại sẽ do hệ thống tự động chiến đấu hoàn tất.",
+            gameInfoGenreLabel: "Thể loại:",
+            gameInfoGenre: "Roguelite, Auto Battler, Clicker, Text Based, Incremental.",
+            gameInfoP2: "Trò chơi này giới thiệu một thể loại hoàn toàn mới: <strong>Rogue - Lite - Ultimate</strong>. Khác với các trò chơi roguelite truyền thống, trò chơi này cho phép cả bạn và kẻ thù tăng tiến sức mạnh vô hạn. Không có giới hạn về chỉ số hay kỹ năng, cho phép bạn trở nên cực kỳ mạnh mẽ ở giai đoạn cuối game. Hãy quên đi những trò chơi mà nhà phát triển giới hạn sức mạnh của người chơi; ở đây, bạn có thể tăng sức mạnh vô hạn miễn là bạn chăm chỉ cày cuốc.",
+            gameInfoP3: "Các con số trong trò chơi này có thể đạt đến mức khổng lồ—hàng tỷ sát thương, máu và giáp. Thiết kế cực nhẹ giúp bạn có thể vừa chơi vừa làm việc khác mà không lo giật lag.",
+            iapTitle: "Mua Gói Trong Game (IAP)",
+            iapDesc: "Chỉ có một gói đăng ký duy nhất để loại bỏ quảng cáo:",
+            iap1MonthLabel: "Gói 1 Tháng",
+            iap1MonthDiscount: "Giảm giá 5%",
+            iap2MonthLabel: "Gói 2 Tháng",
+            iap2MonthDiscount: "Giảm giá 10%",
+            iap3MonthLabel: "Gói 3 Tháng",
+            iap3MonthDiscount: "Giảm giá 15%",
+            upgradeButtonText: "Nâng Cấp",
+            maxLevelText: "Cấp Tối Đa",
+            maxButtonText: "Tối Đa",
+            costTextPoints: "Giá: {cost} Đ",
+            costTextGold: "Giá: {cost} V",
+            levelUpLog: "Lên cấp {level}! +5 Điểm, +50 Máu, +10 ST, +5 Giáp, +0.01 TốcĐánh. Các thưởng Vàng/KN/Điểm theo cấp cũng tăng.",
+            upgradeLog: "Nâng cấp {name} x{amount} tốn {cost} {currency}.",
+            notEnoughPointsLog: "Không đủ điểm để nâng cấp {name}. Cần {cost}, có {current}.",
+            notEnoughGoldLog: "Không đủ vàng để nâng cấp {name}. Cần {cost}, có {current}.",
+            maxLevelLog: "{name} đã đạt cấp tối đa.",
+            battleStartLog: "--- Tầng {floor}: Chiến đấu với {enemyName} bắt đầu! ---",
+            playerAttackLog: "Người chơi đánh {enemyName} gây {damage} sát thương.{critText}",
+            enemyAttackLog: "{enemyName} đánh Người chơi gây {damage} sát thương.",
+            thornsLog: "Gai của Người chơi phản {damage} sát thương vào {enemyName}.",
+            victoryLog: "--- CHIẾN THẮNG! Đã qua Tầng {floor}. ---",
+            rewardsLog: "Phần thưởng: +{points} Điểm, +{gold} Vàng, +{exp} KN.",
+            defeatLog: "--- THẤT BẠI! Bạn đã bị đánh bại ở Tầng {floor}. ---",
+            fallbackLog: "Bạn bị đẩy lùi về Tầng {floor}.",
+            gameSavedLog: "Trò chơi đã được lưu.",
+            gameLoadedLog: "Trò chơi đã tải. Nhấn '{fightBtnStart}' để chiến đấu.",
+            currencyPoints: "điểm",
+            currencyGold: "vàng",
+            critText: " (CHÍ MẠNG!)",
+            upgradeLevelButton: "+{amount} Cấp"
+        },
+        en: {
+            playerStatsTitle: "Player Stats",
+            gold: "Gold",
+            exp: "EXP",
+            points: "Points",
+            basicStatsTitle: "Basic Stats",
+            maxHealthLabel: "Max Health:",
+            damageLabel: "Damage:",
+            armorLabel: "Armor:",
+            healthRegenLabel: "HP Regen/3s:",
+            onHitHealLabel: "On-Hit Heal:",
+            advancedStatsTitle: "Advanced Stats",
+            lifestealLabel: "Lifesteal:",
+            attackSpeedLabel: "Attack Speed:",
+            thornsLabel: "Thorns Dmg:",
+            critChanceLabel: "Crit Chance:",
+            critDamageLabel: "Crit Damage:",
+            bonusProgressionTitle: "Bonuses & Progression",
+            goldBonusPercentLabel: "Gold Bonus (%):",
+            goldBonusFlatLabel: "Gold Bonus (Flat):",
+            expBonusPercentLabel: "EXP Bonus (%):",
+            expBonusFlatLabel: "EXP Bonus (Flat):",
+            pointBonusPercentLabel: "Point Bonus (%):",
+            pointBonusFlatLabel: "Point Bonus (Flat):",
+            levelLabel: "Level:",
+            pointUpgradesTitle: "Upgrades (Points)",
+            equipmentUpgradesTitle: "Equipment (Gold)",
+            amountLabel: "Amount:",
+            floorTitle: "Floor {floor}",
+            playerNameBattle: "Player",
+            enemyNameDefault: "Enemy",
+            waitingEnemy: "Waiting...",
+            fightBtnStart: "Start Battle",
+            fightBtnInProgress: "Battling...",
+            fightBtnNext: "Next Floor",
+            gameInfoTitle: "About Rogue-Lite-Ultimate",
+            gameInfoP1: "This is a semi-idle game with super simple gameplay. Your job is just to click on things like fighting and upgrading your character, the rest is handled by the auto-battle system.",
+            gameInfoGenreLabel: "Genre:",
+            gameInfoGenre: "Roguelite, Auto Battler, Clicker, Text Based, Incremental.",
+            gameInfoP2: "This game introduces a new genre: <strong>Rogue - Lite - Ultimate</strong>. Unlike traditional roguelites, this game allows both you and the enemy to advance in power infinitely. There are no limits on your stats or skills, allowing you to become incredibly powerful in the late game. Forget games where developers limit player power; here, you can increase your strength endlessly as long as you're willing to farm.",
+            gameInfoP3: "The numbers in this game can reach astronomical heights—billions of damage, health, and armor. Its lightweight design ensures you can play while doing other tasks without lag.",
+            iapTitle: "In-Game Purchases (IAP)",
+            iapDesc: "There is only one subscription package to remove ads:",
+            iap1MonthLabel: "1 Month Package",
+            iap1MonthDiscount: "5% Discount",
+            iap2MonthLabel: "2 Month Package",
+            iap2MonthDiscount: "10% Discount",
+            iap3MonthLabel: "3 Month Package",
+            iap3MonthDiscount: "15% Discount",
+            upgradeButtonText: "Upgrade",
+            maxLevelText: "Max Level",
+            maxButtonText: "Max",
+            costTextPoints: "Cost: {cost} Pts",
+            costTextGold: "Cost: {cost} G",
+            levelUpLog: "Level up to {level}! +5 Points, +50 HP, +10 Dmg, +5 Armor, +0.01 Atk Spd. Level-based Gold/EXP/Point bonuses also increased.",
+            upgradeLog: "Upgraded {name} x{amount} for {cost} {currency}.",
+            notEnoughPointsLog: "Not enough points to upgrade {name}. Need {cost}, have {current}.",
+            notEnoughGoldLog: "Not enough gold to upgrade {name}. Need {cost}, have {current}.",
+            maxLevelLog: "{name} is at max level.",
+            battleStartLog: "--- Floor {floor}: Battle against {enemyName} begins! ---",
+            playerAttackLog: "Player hits {enemyName} for {damage} damage.{critText}",
+            enemyAttackLog: "{enemyName} hits Player for {damage} damage.",
+            thornsLog: "Player's thorns reflect {damage} damage to {enemyName}.",
+            victoryLog: "--- VICTORY! Cleared Floor {floor}. ---",
+            rewardsLog: "Rewards: +{points} Points, +{gold} Gold, +{exp} EXP.",
+            defeatLog: "--- DEFEAT! You were beaten on Floor {floor}. ---",
+            fallbackLog: "You fall back to Floor {floor}.",
+            gameSavedLog: "Game saved.",
+            gameLoadedLog: "Game loaded. Press '{fightBtnStart}' to begin.",
+            currencyPoints: "points",
+            currencyGold: "gold",
+            critText: " (CRIT!)",
+            upgradeLevelButton: "+{amount} Lvl"
+        }
+    };
+    let currentLang = 'vi'; // Default language
+
+    const DOMElements = {
+        // Language buttons
+        langViBtn: document.getElementById('lang-vi'),
+        langEnBtn: document.getElementById('lang-en'),
+        // Titles
+        playerStatsTitle: document.getElementById('player-stats-title'),
+        basicStatsTitle: document.getElementById('basic-stats-title'),
+        advancedStatsTitle: document.getElementById('advanced-stats-title'),
+        bonusProgressionTitle: document.getElementById('bonus-progression-title'),
+        pointUpgradesTitle: document.getElementById('point-upgrades-title'),
+        equipmentUpgradesTitle: document.getElementById('equipment-upgrades-title'),
+        gameInfoTitle: document.getElementById('game-info-title'),
+        iapTitle: document.getElementById('iap-title'),
+        // Labels
+        maxHealthLabel: document.getElementById('max-health-label'),
+        damageLabel: document.getElementById('damage-label'),
+        armorLabel: document.getElementById('armor-label'),
+        healthRegenLabel: document.getElementById('health-regen-label'),
+        onHitHealLabel: document.getElementById('on-hit-heal-label'),
+        lifestealLabel: document.getElementById('lifesteal-label'),
+        attackSpeedLabel: document.getElementById('attack-speed-label'),
+        thornsLabel: document.getElementById('thorns-label'),
+        critChanceLabel: document.getElementById('crit-chance-label'),
+        critDamageLabel: document.getElementById('crit-damage-label'),
+        goldBonusPercentLabel: document.getElementById('gold-bonus-percent-label'),
+        goldBonusFlatLabel: document.getElementById('gold-bonus-flat-label'),
+        expBonusPercentLabel: document.getElementById('exp-bonus-percent-label'),
+        expBonusFlatLabel: document.getElementById('exp-bonus-flat-label'),
+        pointBonusPercentLabel: document.getElementById('point-bonus-percent-label'),
+        pointBonusFlatLabel: document.getElementById('point-bonus-flat-label'),
+        levelLabelContent: document.getElementById('level-label'), 
+        amountLabelPoints: document.getElementById('amount-label-points'),
+        amountLabelGold: document.getElementById('amount-label-gold'),
+        gameInfoGenreLabel: document.getElementById('game-info-genre-label'),
+        iapDesc: document.getElementById('iap-desc'),
+        iap1MonthLabel: document.getElementById('iap-1month-label'),
+        iap1MonthDiscount: document.getElementById('iap-1month-discount'),
+        iap2MonthLabel: document.getElementById('iap-2month-label'),
+        iap2MonthDiscount: document.getElementById('iap-2month-discount'),
+        iap3MonthLabel: document.getElementById('iap-3month-label'),
+        iap3MonthDiscount: document.getElementById('iap-3month-discount'),
+        playerNameBattle: document.getElementById('player-name-battle'),
+        // Paragraphs
+        gameInfoP1: document.getElementById('game-info-p1'),
+        gameInfoGenre: document.getElementById('game-info-genre'),
+        gameInfoP2: document.getElementById('game-info-p2'),
+        gameInfoP3: document.getElementById('game-info-p3'),
+        // Dynamic values (spans)
+        goldText: document.getElementById('gold-text'), 
+        expText: document.getElementById('exp-text'),   
+        pointsText: document.getElementById('points-text'), 
+        level: document.getElementById('level'),
+        maxHealth: document.getElementById('maxHealth'),
+        damage: document.getElementById('damage'),
+        armor: document.getElementById('armor'),
+        healthRegen: document.getElementById('healthRegen'),
+        onHitHeal: document.getElementById('onHitHeal'),
+        lifesteal: document.getElementById('lifesteal'),
+        attackSpeed: document.getElementById('attackSpeed'),
+        thorns: document.getElementById('thorns'),
+        critChance: document.getElementById('critChance'),
+        critDamage: document.getElementById('critDamage'),
+        goldBonusPercent: document.getElementById('goldBonusPercent'),
+        goldBonusFlat: document.getElementById('goldBonusFlat'),
+        expBonusPercent: document.getElementById('expBonusPercent'),
+        expBonusFlat: document.getElementById('expBonusFlat'),
+        pointBonusPercent: document.getElementById('point-bonus-percent-label'),
+        pointBonusFlat: document.getElementById('point-bonus-flat-label'),
+        upgradeAmountSelector: document.getElementById('upgrade-amount-selector'),
+        equipmentAmountSelector: document.getElementById('equipment-amount-selector'),
+        pointUpgradesList: document.getElementById('point-upgrades-list'),
+        equipmentList: document.getElementById('equipment-list'),
+        floorTitle: document.getElementById('floor-title'),
+        enemyName: document.getElementById('enemy-name'),
+        playerHealthBar: document.getElementById('player-health-bar'),
+        playerHealthText: document.getElementById('player-health-text'),
+        enemyHealthBar: document.getElementById('enemy-health-bar'),
+        enemyHealthText: document.getElementById('enemy-health-text'),
+        fightBtn: document.getElementById('fight-btn'),
+        battleLog: document.getElementById('battle-log'),
+    };
+
+    // --- GAME STATE ---
+    let player, progression, battleState; 
+
+    const defaultState = {
+        player: {
+            level: 1,
+            exp: 111,
+            expToNextLevel: 50,
+            gold: 1111111111, // Updated starting gold
+            upgradePoints: 1111111111, // Updated starting points
+            
+            baseMaxHealth: 5000,
+            baseDamage: 1000,
+            baseArmor: 0, 
+            levelAttackSpeedBonus: 0, 
+            
+            upgrades: { 
+                damage: 0, damagePercent: 0,
+                maxHealth: 0, maxHealthPercent: 0,
+                armor: 0, armorPercent: 0,
+                lifesteal: 0, healthRegenPer3s: 0, onHitHeal: 0,
+                attackSpeedBoost: 0, 
+                thorns: 0, critChance: 0, critDamage: 0,
+                goldBonus: 0, goldBonusPercent: 0,
+                expBonus: 0, expBonusPercent: 0,
+                pointBonus: 0, pointBonusPercent: 0,
+            },
+            
+            equipment: { 
+                weapon: 0, armor: 0, helmet: 0, boots: 0, ring: 0, shield: 0,
+                rune: 0, magicStone: 0, divineAmulet: 0, magicAmulet: 0,
+            },
+
+            currentHealth: 5000, maxHealth: 5000, damage: 1000, armor: 0,
+            lifesteal: 0, attackSpeed: 1.0, thorns: 0,
+            critChance: 0, critDamageMultiplier: 1.5, 
+            healthRegenPerInterval: 0.03, 
+            onHitHealValue: 0,
+            
+            flatGoldBonus: 0, percentGoldBonus: 0,
+            flatExpBonus: 0, percentExpBonus: 0,
+            flatPointBonus: 0, percentPointBonus: 0,
+        },
+        progression: {
+            floor: 1,
+        },
+        battleState: {
+            inProgress: false,
+            enemy: null,
+            battleIntervalId: null,
+            regenIntervalId: null,
+            lastPlayerHealthText: "", 
+            lastEnemyHealthText: ""   
+        }
+    };
+    
+    // --- DATA PERSISTENCE ---
+    function saveGame() {
+        const gameState = { player, progression, currentLang }; 
+        localStorage.setItem('rogueliteAutoBattleSave_v2.16', JSON.stringify(gameState)); // Updated save key
+        logToBattleLog('gameSavedLog');
+    }
+
+    function loadGame() {
+        const savedState = localStorage.getItem('rogueliteAutoBattleSave_v2.16'); // Updated save key
+        if (savedState) {
+            const loaded = JSON.parse(savedState);
+            player = {
+                ...JSON.parse(JSON.stringify(defaultState.player)), 
+                ...loaded.player,
+                upgrades: { ...defaultState.player.upgrades, ...(loaded.player.upgrades || {}) },
+                equipment: { ...defaultState.player.equipment, ...(loaded.player.equipment || {}) },
+                levelAttackSpeedBonus: loaded.player.levelAttackSpeedBonus || 0, 
+            };
+            // If loading from an older save, ensure new default resources are applied if not present or lower
+            // This logic might need adjustment based on how strictly you want to enforce new defaults on old saves.
+            // For now, it only applies the new default if the saved value is less than the new default.
+            if (!loaded.player.hasOwnProperty('upgradePoints') || loaded.player.upgradePoints < defaultState.player.upgradePoints) {
+                const versionMarkerPoints = localStorage.getItem('roguelite_v2.16_points_updated'); 
+                if (!versionMarkerPoints) { 
+                    player.upgradePoints = defaultState.player.upgradePoints;
+                    localStorage.setItem('roguelite_v2.16_points_updated', 'true');
+                }
+            }
+             if (!loaded.player.hasOwnProperty('gold') || loaded.player.gold < defaultState.player.gold) {
+                const versionMarkerGold = localStorage.getItem('roguelite_v2.16_gold_updated'); 
+                if (!versionMarkerGold) { 
+                    player.gold = defaultState.player.gold;
+                    localStorage.setItem('roguelite_v2.16_gold_updated', 'true');
+                }
+            }
+
+
+            progression = { ...defaultState.progression, ...loaded.progression };
+            currentLang = loaded.currentLang || 'vi'; 
+            battleState = JSON.parse(JSON.stringify(defaultState.battleState)); 
+            
+        } else {
+            player = JSON.parse(JSON.stringify(defaultState.player));
+            progression = JSON.parse(JSON.stringify(defaultState.progression));
+            battleState = JSON.parse(JSON.stringify(defaultState.battleState));
+            currentLang = 'vi'; 
+            localStorage.setItem('roguelite_v2.16_points_updated', 'true'); 
+            localStorage.setItem('roguelite_v2.16_gold_updated', 'true'); 
+        }
+        calculateAllPlayerStats(); 
+        player.currentHealth = player.maxHealth; 
+    }
+    
+    // --- LANGUAGE FUNCTIONALITY ---
+    function setLanguage(lang) {
+        console.log("Setting language to:", lang);
+        currentLang = lang;
+        localStorage.setItem('rogueliteSelectedLang', lang); 
+        updateUIText(); 
+        setupUpgradeUI(); // Rebuilds upgrade UI with new language
+        
+        if (DOMElements.battleLog.firstChild && (DOMElements.battleLog.firstChild.textContent.includes("Chào mừng") || DOMElements.battleLog.firstChild.textContent.includes("Welcome"))) {
+             DOMElements.battleLog.innerHTML = ''; 
+             logToBattleLog('gameLoadedLog', {fightBtnStart: languageStrings[currentLang].fightBtnStart});
+        } else if (!DOMElements.battleLog.firstChild && !battleState.inProgress) { 
+            logToBattleLog('gameLoadedLog', {fightBtnStart: languageStrings[currentLang].fightBtnStart});
+        }
+
+
+        DOMElements.langViBtn.classList.toggle('active', lang === 'vi');
+        DOMElements.langEnBtn.classList.toggle('active', lang === 'en');
+        updateAllUI(); 
+    }
+
+    function updateUIText() {
+        const lang = languageStrings[currentLang];
+        if (!lang) {
+            console.error("Language not found:", currentLang);
+            return;
+        }
+        DOMElements.playerStatsTitle.textContent = lang.playerStatsTitle;
+        DOMElements.basicStatsTitle.textContent = lang.basicStatsTitle;
+        DOMElements.maxHealthLabel.textContent = lang.maxHealthLabel;
+        DOMElements.damageLabel.textContent = lang.damageLabel;
+        DOMElements.armorLabel.textContent = lang.armorLabel;
+        DOMElements.healthRegenLabel.textContent = lang.healthRegenLabel;
+        DOMElements.onHitHealLabel.textContent = lang.onHitHealLabel;
+        DOMElements.advancedStatsTitle.textContent = lang.advancedStatsTitle;
+        DOMElements.lifestealLabel.textContent = lang.lifestealLabel;
+        DOMElements.attackSpeedLabel.textContent = lang.attackSpeedLabel;
+        DOMElements.thornsLabel.textContent = lang.thornsLabel;
+        DOMElements.critChanceLabel.textContent = lang.critChanceLabel;
+        DOMElements.critDamageLabel.textContent = lang.critDamageLabel;
+        DOMElements.bonusProgressionTitle.textContent = lang.bonusProgressionTitle;
+        DOMElements.goldBonusPercentLabel.textContent = lang.goldBonusPercentLabel;
+        DOMElements.goldBonusFlatLabel.textContent = lang.goldBonusFlatLabel;
+        DOMElements.expBonusPercentLabel.textContent = lang.expBonusPercentLabel;
+        DOMElements.expBonusFlatLabel.textContent = lang.expBonusFlatLabel;
+        DOMElements.pointBonusPercentLabel.textContent = lang.pointBonusPercentLabel;
+        DOMElements.pointBonusFlatLabel.textContent = lang.pointBonusFlatLabel;
+        DOMElements.levelLabelContent.textContent = lang.levelLabel;
+        DOMElements.pointUpgradesTitle.textContent = lang.pointUpgradesTitle;
+        DOMElements.equipmentUpgradesTitle.textContent = lang.equipmentUpgradesTitle;
+        DOMElements.amountLabelPoints.textContent = lang.amountLabel;
+        DOMElements.amountLabelGold.textContent = lang.amountLabel;
+        DOMElements.playerNameBattle.textContent = lang.playerNameBattle;
+        DOMElements.gameInfoTitle.textContent = lang.gameInfoTitle;
+        DOMElements.gameInfoP1.textContent = lang.gameInfoP1;
+        DOMElements.gameInfoGenreLabel.textContent = lang.gameInfoGenreLabel;
+        DOMElements.gameInfoGenre.textContent = lang.gameInfoGenre;
+        DOMElements.gameInfoP2.innerHTML = lang.gameInfoP2; 
+        DOMElements.gameInfoP3.textContent = lang.gameInfoP3;
+        DOMElements.iapTitle.textContent = lang.iapTitle;
+        DOMElements.iapDesc.textContent = lang.iapDesc;
+        DOMElements.iap1MonthLabel.textContent = lang.iap1MonthLabel;
+        DOMElements.iap1MonthDiscount.textContent = lang.iap1MonthDiscount;
+        DOMElements.iap2MonthLabel.textContent = lang.iap2MonthLabel;
+        DOMElements.iap2MonthDiscount.textContent = lang.iap2MonthDiscount;
+        DOMElements.iap3MonthLabel.textContent = lang.iap3MonthLabel;
+        DOMElements.iap3MonthDiscount.textContent = lang.iap3MonthDiscount;
+
+        DOMElements.fightBtn.textContent = battleState.inProgress ? lang.fightBtnInProgress : (progression.floor > 1 || battleState.enemy ? lang.fightBtnNext : lang.fightBtnStart);
+        DOMElements.floorTitle.textContent = lang.floorTitle.replace('{floor}', progression.floor);
+        
+        DOMElements.goldText.textContent = `${lang.gold}: ${formatNumber(player.gold)}`;
+        DOMElements.expText.textContent = `${lang.exp}: ${formatNumber(player.exp)} / ${formatNumber(player.expToNextLevel)}`;
+        DOMElements.pointsText.textContent = `${lang.points}: ${formatNumber(player.upgradePoints)}`;
+    }
+
+
+    // --- LOGGING ---
+    function logToBattleLog(messageKey, params = {}) { 
+        const lang = languageStrings[currentLang];
+        let processedMessage = lang[messageKey] || messageKey; 
+        for (const key in params) {
+            processedMessage = processedMessage.replace(new RegExp(`{${key}}`, 'g'), params[key]);
+        }
+
+        const p = document.createElement('p');
+        p.textContent = `[${new Date().toLocaleTimeString()}]: ${processedMessage}`;
+        DOMElements.battleLog.appendChild(p);
+        DOMElements.battleLog.scrollTop = DOMElements.battleLog.scrollHeight;
+    }
+
+    // --- PLAYER STAT CALCULATION ---
+    function calculateAllPlayerStats() {
+        let currentMaxHealth = player.baseMaxHealth + (player.upgrades.maxHealth * 20);
+        let currentDamage = player.baseDamage + (player.upgrades.damage * 2);
+        let currentArmor = player.baseArmor + (player.upgrades.armor * 1); 
+
+        let equipDamage = 0, equipArmorPoints = 0, equipHealth = 0, equipAttackSpeedBonus = 0,
+            equipLifesteal = 0, equipOnHitHeal = 0, equipFlatGold = 0, equipPercentGold = 0,
+            equipFlatExp = 0, equipPercentExp = 0, equipFlatPoint = 0, equipPercentPoint = 0;
+
+        equipDamage += player.equipment.weapon * 2;
+        equipArmorPoints += player.equipment.armor * 2;
+        equipHealth += player.equipment.armor * 20;
+        equipHealth += player.equipment.helmet * 40;
+        equipAttackSpeedBonus += player.equipment.boots * 0.01;
+        equipLifesteal += player.equipment.ring * 0.01;
+        equipOnHitHeal += player.equipment.shield * 1;
+        
+        equipFlatGold += player.equipment.rune * 1;
+        equipPercentGold += player.equipment.rune * 0.01;
+        equipAttackSpeedBonus += player.equipment.rune * 0.01;
+        
+        equipAttackSpeedBonus += player.equipment.magicStone * 0.01;
+        equipFlatGold += player.equipment.magicStone * 1;
+        
+        equipPercentGold += player.equipment.divineAmulet * 0.01;
+        equipPercentExp += player.equipment.divineAmulet * 0.01;
+        equipPercentPoint += player.equipment.divineAmulet * 0.01;
+        
+        equipFlatGold += player.equipment.magicAmulet * 1;
+        equipFlatExp += player.equipment.magicAmulet * 1;
+        equipFlatPoint += player.equipment.magicAmulet * 1;
+
+        currentMaxHealth += equipHealth;
+        currentDamage += equipDamage;
+        currentArmor += equipArmorPoints;
+
+        currentMaxHealth *= (1 + player.upgrades.maxHealthPercent * 0.01);
+        currentDamage *= (1 + player.upgrades.damagePercent * 0.01);
+        currentArmor *= (1 + player.upgrades.armorPercent * 0.01);
+        
+        player.maxHealth = Math.round(currentMaxHealth);
+        player.damage = Math.round(currentDamage);
+        player.armor = Math.round(currentArmor);
+
+        if (!battleState.inProgress) {
+            player.currentHealth = player.maxHealth;
+        } else {
+            player.currentHealth = Math.min(player.currentHealth, player.maxHealth);
+        }
+
+        player.lifesteal = Math.min((player.upgrades.lifesteal * 0.01) + equipLifesteal, 0.30);
+        player.attackSpeed = Math.min(1.0 + equipAttackSpeedBonus + player.levelAttackSpeedBonus, 6.00); 
+        player.thorns = Math.min(player.upgrades.thorns * 0.01, 0.05);
+        player.critChance = Math.min(player.upgrades.critChance * 0.01, 0.75);
+        player.critDamageMultiplier = Math.min(1.5 + (player.upgrades.critDamage * 0.01), 5.00);
+        
+        let regenFromUpgrade = Math.min(player.upgrades.healthRegenPer3s * 0.001, 0.03); 
+        player.healthRegenPerInterval = 0.03 + regenFromUpgrade; 
+        player.onHitHealValue = (player.upgrades.onHitHeal * 1) + equipOnHitHeal;
+        
+        const levelBonusFactor = player.level > 1 ? player.level - 1 : 0;
+
+        player.flatGoldBonus = (player.upgrades.goldBonus * 1) + equipFlatGold + (levelBonusFactor * 1);
+        player.percentGoldBonus = (player.upgrades.goldBonusPercent * 0.01) + equipPercentGold + (levelBonusFactor * 0.01);
+        
+        player.flatExpBonus = (player.upgrades.expBonus * 1) + equipFlatExp + (levelBonusFactor * 1);
+        player.percentExpBonus = (player.upgrades.expBonusPercent * 0.01) + equipPercentExp + (levelBonusFactor * 0.01);
+        
+        player.flatPointBonus = (player.upgrades.pointBonus * 1) + equipFlatPoint + (levelBonusFactor * 1);
+        player.percentPointBonus = (player.upgrades.pointBonusPercent * 0.01) + equipPercentPoint + (levelBonusFactor * 0.01);
+    }
+    
+    // --- UI UPDATE ---
+    function updateAllUI() {
+        calculateAllPlayerStats(); 
+        updateUIText(); 
+
+        DOMElements.maxHealth.textContent = formatNumber(player.maxHealth);
+        DOMElements.damage.textContent = formatNumber(player.damage);
+        DOMElements.armor.textContent = formatNumber(player.armor);
+        DOMElements.healthRegen.textContent = `${(player.healthRegenPerInterval * 100).toFixed(1)}%`;
+        DOMElements.onHitHeal.textContent = `+${formatNumber(player.onHitHealValue)}`;
+        DOMElements.lifesteal.textContent = `${(player.lifesteal * 100).toFixed(0)}%`;
+        DOMElements.attackSpeed.textContent = player.attackSpeed.toFixed(2);
+        DOMElements.thorns.textContent = `${(player.thorns * 100).toFixed(0)}%`;
+        DOMElements.critChance.textContent = `${(player.critChance * 100).toFixed(0)}%`;
+        DOMElements.critDamage.textContent = `x${player.critDamageMultiplier.toFixed(2)}`;
+        
+        DOMElements.goldBonusPercent.textContent = `+${(player.percentGoldBonus * 100).toFixed(1)}%`;
+        DOMElements.goldBonusFlat.textContent = `+${formatNumber(player.flatGoldBonus)}`;
+        DOMElements.expBonusPercent.textContent = `+${(player.percentExpBonus * 100).toFixed(1)}%`;
+        DOMElements.expBonusFlat.textContent = `+${formatNumber(player.flatExpBonus)}`;
+        DOMElements.pointBonusPercent.textContent = `+${(player.percentPointBonus * 100).toFixed(1)}%`;
+        DOMElements.pointBonusFlat.textContent = `+${formatNumber(player.flatPointBonus)}`;
+        DOMElements.level.textContent = player.level;
+        
+        updateHealthBars();
+        updatePointUpgradesUI(); 
+        updateEquipmentUpgradesUI(); 
+    }
+    
+    function updateHealthBars() {
+        const playerHealthPercent = Math.max(0, (player.currentHealth / player.maxHealth) * 100);
+        DOMElements.playerHealthBar.style.width = `${playerHealthPercent}%`;
+        
+        const currentPlayerHealthText = `${formatNumber(player.currentHealth)} / ${formatNumber(player.maxHealth)}`;
+        if (battleState.lastPlayerHealthText !== currentPlayerHealthText) {
+            DOMElements.playerHealthText.textContent = currentPlayerHealthText;
+            battleState.lastPlayerHealthText = currentPlayerHealthText;
+        }
+
+
+        if (battleState.enemy) {
+            const enemyHealthPercent = Math.max(0, (battleState.enemy.currentHealth / battleState.enemy.maxHealth) * 100);
+            DOMElements.enemyHealthBar.style.width = `${enemyHealthPercent}%`;
+            
+            const currentEnemyHealthText = `${formatNumber(battleState.enemy.currentHealth)} / ${formatNumber(battleState.enemy.maxHealth)}`;
+            if (battleState.lastEnemyHealthText !== currentEnemyHealthText) {
+                DOMElements.enemyHealthText.textContent = currentEnemyHealthText;
+                battleState.lastEnemyHealthText = currentEnemyHealthText;
+            }
+            DOMElements.enemyName.textContent = battleState.enemy.name; 
+        } else { // Initialize enemy display if no battle is in progress
+             DOMElements.enemyHealthBar.style.width = `0%`; 
+             DOMElements.enemyHealthText.textContent = '--- / ---';
+             DOMElements.enemyName.textContent = languageStrings[currentLang].waitingEnemy;
+             battleState.lastEnemyHealthText = ""; 
+        }
+    }
+
+    // --- LEVELING ---
+    function checkLevelUp() {
+        let levelsGainedThisCheck = 0;
+        while (player.exp >= player.expToNextLevel) {
+            levelsGainedThisCheck++;
+            player.level++;
+            player.exp -= player.expToNextLevel;
+            player.expToNextLevel = player.level * 50; 
+            
+            player.upgradePoints += 5;
+            player.baseMaxHealth += 50;
+            player.baseDamage += 10;
+            player.baseArmor += 5;
+            player.levelAttackSpeedBonus += 0.01;
+
+            logToBattleLog('levelUpLog', {level: player.level});
+        }
+    }
+    
+    // --- ENEMY GENERATION ---
+    const ENEMY_NAMES_VI = ['Goblin', 'Orge', 'Dark Elf', 'Demon', 'Sơn Tặc', 'Lâm Tặc', 'Skeleton', 'Zombie', 'Ghoul', 'Slime', 'Giant Spider'];
+    const BOSS_NAMES_VI = ['Rồng', 'Behemoth', 'Lich King', 'Abyssal Lord', 'Titan Cổ Đại', 'Hydra'];
+    const ENEMY_NAMES_EN = ['Goblin', 'Ogre', 'Dark Elf', 'Demon', 'Bandit', 'Lumberjack', 'Skeleton', 'Zombie', 'Ghoul', 'Slime', 'Giant Spider'];
+    const BOSS_NAMES_EN = ['Dragon', 'Behemoth', 'Lich King', 'Abyssal Lord', 'Ancient Titan', 'Hydra'];
+    
+    const ENEMY_FLOOR_1_BASE_STATS = {
+        health: 2500,
+        damage: 500,
+        armor: 500,
+        attackSpeed: 0.75 
+    };
+
+    function generateEnemy(floor) {
+        console.log("Generating enemy for floor:", floor);
+        const isBoss = floor % 5 === 0;
+        const enemyNamesPool = currentLang === 'vi' ? ENEMY_NAMES_VI : ENEMY_NAMES_EN;
+        const bossNamesPool = currentLang === 'vi' ? BOSS_NAMES_VI : BOSS_NAMES_EN;
+        const lang = languageStrings[currentLang];
+
+        const name = isBoss 
+            ? `${bossNamesPool[Math.floor(Math.random() * bossNamesPool.length)]} (${lang.floorTitle.replace('{floor}', floor).replace(lang.floorTitle.split(" ")[0], 'Boss')})` 
+            : `${enemyNamesPool[Math.floor(Math.random() * enemyNamesPool.length)]}`;
+        
+        let currentHealth, currentDamage, currentArmor, currentAttackSpeed;
+        const MAX_EXPONENT_FOR_SCALING = 60; 
+
+
+        if (floor === 1) {
+            currentHealth = ENEMY_FLOOR_1_BASE_STATS.health;
+            currentDamage = ENEMY_FLOOR_1_BASE_STATS.damage;
+            currentArmor = ENEMY_FLOOR_1_BASE_STATS.armor;
+            currentAttackSpeed = ENEMY_FLOOR_1_BASE_STATS.attackSpeed;
+        } else {
+            const effectiveExponent = Math.min(floor - 1, MAX_EXPONENT_FOR_SCALING);
+            const exponentialMultiplier = Math.pow(2, effectiveExponent);
+            
+            currentHealth = ENEMY_FLOOR_1_BASE_STATS.health * exponentialMultiplier;
+            currentDamage = ENEMY_FLOOR_1_BASE_STATS.damage * exponentialMultiplier;
+            currentArmor = ENEMY_FLOOR_1_BASE_STATS.armor * exponentialMultiplier;
+            
+            currentAttackSpeed = ENEMY_FLOOR_1_BASE_STATS.attackSpeed + (floor - 1) * 0.03; 
+        }
+        
+        if (isBoss) {
+            currentHealth *= 1.5;
+            currentDamage *= 1.3;
+            currentArmor *= 1.2;
+        }
+        
+        battleState.enemy = {
+            name: name,
+            maxHealth: Math.max(10, Math.round(currentHealth)),
+            currentHealth: Math.max(10, Math.round(currentHealth)),
+            damage: Math.max(1, Math.round(currentDamage)),
+            armor: Math.round(currentArmor),
+            attackSpeed: Math.max(0.1, currentAttackSpeed),
+            isBoss: isBoss
+        };
+        battleState.lastEnemyHealthText = ""; 
+        if (DOMElements.enemyName) DOMElements.enemyName.textContent = battleState.enemy.name;
+        console.log("Generated enemy:", battleState.enemy);
+    }
+
+    // --- UPGRADE SYSTEM ---
+    let upgradeMultiplier = 1;
+    let equipmentMultiplier = 1;
+
+    const pointUpgradesConfig = {
+        damage: { nameKey: 'damage', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitDamage' },
+        damagePercent: { nameKey: 'damagePercent', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitDamagePercent' },
+        maxHealth: { nameKey: 'maxHealth', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitMaxHealth' },
+        maxHealthPercent: { nameKey: 'maxHealthPercent', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitMaxHealthPercent' },
+        armor: { nameKey: 'armor', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitArmor' },
+        armorPercent: { nameKey: 'armorPercent', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitArmorPercent' },
+        lifesteal: { nameKey: 'lifesteal', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitLifesteal', maxLevel: 30 },
+        healthRegenPer3s: { nameKey: 'healthRegenPer3s', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitHealthRegen', maxLevel: 30 }, 
+        onHitHeal: { nameKey: 'onHitHeal', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitOnHitHeal' },
+        thorns: { nameKey: 'thorns', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitThorns', maxLevel: 5 },
+        critChance: { nameKey: 'critChance', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitCritChance', maxLevel: 75 },
+        critDamage: { nameKey: 'critDamage', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitCritDamage', maxLevel: 350 },
+        goldBonus: { nameKey: 'goldBonus', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitGoldBonus' },
+        goldBonusPercent: { nameKey: 'goldBonusPercent', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitGoldBonusPercent' },
+        expBonus: { nameKey: 'expBonus', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitExpBonus' },
+        expBonusPercent: { nameKey: 'expBonusPercent', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitExpBonusPercent' },
+        pointBonus: { nameKey: 'pointBonus', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitPointBonus' },
+        pointBonusPercent: { nameKey: 'pointBonusPercent', baseCost: 1, costIncrease: 0.1, benefitKey: 'benefitPointBonusPercent' },
+    };
+    languageStrings.vi = { ...languageStrings.vi, damage: 'Sát Thương (Flat)', damagePercent: 'Sát Thương (%)', maxHealth: 'Máu Tối Đa (Flat)', maxHealthPercent: 'Máu Tối Đa (%)', armor: 'Giáp (Flat)', armorPercent: 'Giáp (%)', lifesteal: 'Hút Máu', healthRegenPer3s: 'Hồi Máu/3s', onHitHeal: 'Hồi Máu Khi Đánh', thorns: 'Gai Phản Dmg', critChance: 'Tỷ Lệ Chí Mạng', critDamage: 'S.Thương Chí Mạng', goldBonus: 'Thưởng Vàng (Flat)', goldBonusPercent: 'Thưởng Vàng (%)', expBonus: 'Thưởng KN (Flat)', expBonusPercent: 'Thưởng KN (%)', pointBonus: 'Thưởng Điểm (Flat)', pointBonusPercent: 'Thưởng Điểm (%)' };
+    languageStrings.en = { ...languageStrings.en, damage: 'Damage (Flat)', damagePercent: 'Damage (%)', maxHealth: 'Max Health (Flat)', maxHealthPercent: 'Max Health (%)', armor: 'Armor (Flat)', armorPercent: 'Armor (%)', lifesteal: 'Lifesteal', healthRegenPer3s: 'HP Regen/3s', onHitHeal: 'On-Hit Heal', thorns: 'Thorns Dmg', critChance: 'Crit Chance', critDamage: 'Crit Damage', goldBonus: 'Gold Bonus (Flat)', goldBonusPercent: 'Gold Bonus (%)', expBonus: 'EXP Bonus (Flat)', expBonusPercent: 'EXP Bonus (%)', pointBonus: 'Point Bonus (Flat)', pointBonusPercent: 'Point Bonus (%)' };
+    languageStrings.vi = { ...languageStrings.vi, benefitDamage: '+2 S.Thương', benefitDamagePercent: '+1% S.Thương', benefitMaxHealth: '+20 Máu', benefitMaxHealthPercent: '+1% Máu', benefitArmor: '+1 Giáp', benefitArmorPercent: '+1% Giáp', benefitLifesteal: '+1% H.Máu', benefitHealthRegen: '+0.1%/3s', benefitOnHitHeal: '+1 Máu/Hit', benefitThorns: '+1% Gai', benefitCritChance: '+1% T.Lệ CM', benefitCritDamage: '+1% S.T CM', benefitGoldBonus: '+1 Vàng/Win', benefitGoldBonusPercent: '+1% Vàng/Win', benefitExpBonus: '+1 KN/Win', benefitExpBonusPercent: '+1% KN/Win', benefitPointBonus: '+1 Điểm/Win', benefitPointBonusPercent: '+1% Điểm/Win' };
+    languageStrings.en = { ...languageStrings.en, benefitDamage: '+2 Dmg', benefitDamagePercent: '+1% Dmg', benefitMaxHealth: '+20 HP', benefitMaxHealthPercent: '+1% HP', benefitArmor: '+1 Armor', benefitArmorPercent: '+1% Armor', benefitLifesteal: '+1% Lifesteal', benefitHealthRegen: '+0.1%/3s', benefitOnHitHeal: '+1 HP/Hit', benefitThorns: '+1% Thorns', benefitCritChance: '+1% Crit Chance', benefitCritDamage: '+1% Crit Dmg', benefitGoldBonus: '+1 Gold/Win', benefitGoldBonusPercent: '+1% Gold/Win', benefitExpBonus: '+1 EXP/Win', benefitExpBonusPercent: '+1% EXP/Win', benefitPointBonus: '+1 Point/Win', benefitPointBonusPercent: '+1% Point/Win' };
+
+
+    const equipmentConfig = {
+        weapon: { nameKey: 'weapon', benefitKey: 'benefitWeapon' },
+        armor: { nameKey: 'armorEq', benefitKey: 'benefitArmorEq' }, 
+        helmet: { nameKey: 'helmet', benefitKey: 'benefitHelmet' },
+        boots: { nameKey: 'boots', benefitKey: 'benefitBoots' }, 
+        ring: { nameKey: 'ring', benefitKey: 'benefitRing' }, 
+        shield: { nameKey: 'shield', benefitKey: 'benefitShield' },
+        rune: { nameKey: 'rune', benefitKey: 'benefitRune' },
+        magicStone: { nameKey: 'magicStone', benefitKey: 'benefitMagicStone' },
+        divineAmulet: { nameKey: 'divineAmulet', benefitKey: 'benefitDivineAmulet' },
+        magicAmulet: { nameKey: 'magicAmulet', benefitKey: 'benefitMagicAmulet' }
+    };
+    languageStrings.vi = { ...languageStrings.vi, weapon: 'Vũ Khí', benefitWeapon: '+2 S.Thương', armorEq: 'Giáp Trụ', benefitArmorEq: '+2 Giáp, +20 Máu', helmet: 'Mũ', benefitHelmet: '+40 Máu', boots: 'Giày', benefitBoots: '+0.01 TốcĐánh', ring: 'Nhẫn', benefitRing: '+1% Hút Máu', shield: 'Khiên', benefitShield: '+1 Máu/Hit', rune: 'Rune Cổ', benefitRune: '+1 Vàng, +1% Vàng, +0.01 TốcĐánh', magicStone: 'Đá Phép', benefitMagicStone: '+0.01 TốcĐánh, +1 Vàng', divineAmulet: 'Dây Chuyền Thần', benefitDivineAmulet: '+1% Vàng/KN/Điểm', magicAmulet: 'Dây Chuyền Phép', benefitMagicAmulet: '+1 Vàng/KN/Điểm (Flat)' };
+    languageStrings.en = { ...languageStrings.en, weapon: 'Weapon', benefitWeapon: '+2 Dmg', armorEq: 'Armor', benefitArmorEq: '+2 Armor, +20 HP', helmet: 'Helmet', benefitHelmet: '+40 HP', boots: 'Boots', benefitBoots: '+0.01 Atk Spd', ring: 'Ring', benefitRing: '+1% Lifesteal', shield: 'Shield', benefitShield: '+1 HP/Hit', rune: 'Ancient Rune', benefitRune: '+1 Gold, +1% Gold, +0.01 Atk Spd', magicStone: 'Magic Stone', benefitMagicStone: '+0.01 Atk Spd, +1 Gold', divineAmulet: 'Divine Amulet', benefitDivineAmulet: '+1% Gold/EXP/Pts', magicAmulet: 'Magic Amulet', benefitMagicAmulet: '+1 Gold/EXP/Pts (Flat)' };
+
+
+    function getPointUpgradeCost(key, currentLevel, amount) {
+        const config = pointUpgradesConfig[key];
+        if (amount <= 0) return 0;
+        const totalCost = amount * config.baseCost + config.costIncrease * (amount * currentLevel + (amount * (amount - 1)) / 2);
+        return totalCost;
+    }
+
+    function buyPointUpgrade(key) {
+        console.log("Attempting to buy point upgrade:", key, "Multiplier:", upgradeMultiplier);
+        const currentLevel = player.upgrades[key];
+        const config = pointUpgradesConfig[key];
+        let amountToBuy = upgradeMultiplier;
+
+        if (config.maxLevel) {
+            if (currentLevel >= config.maxLevel) {
+                logToBattleLog('maxLevelLog', {name: languageStrings[currentLang][config.nameKey]});
+                return;
+            }
+            amountToBuy = Math.min(amountToBuy, config.maxLevel - currentLevel);
+        }
+        if (amountToBuy <= 0) {
+            console.log("Amount to buy is <= 0 for", key);
+            return;
+        }
+
+        const cost = getPointUpgradeCost(key, currentLevel, amountToBuy);
+        console.log("Cost for", key, "x", amountToBuy, ":", cost, "Player points:", player.upgradePoints);
+
+
+        if (player.upgradePoints >= cost) {
+            player.upgradePoints -= cost;
+            player.upgrades[key] += amountToBuy;
+            logToBattleLog('upgradeLog', {
+                name: languageStrings[currentLang][config.nameKey],
+                amount: formatMultiplier(amountToBuy),
+                cost: formatNumber(cost),
+                currency: languageStrings[currentLang].currencyPoints
+            });
+            updateAllUI(); 
+        } else {
+            logToBattleLog('notEnoughPointsLog', {
+                name: languageStrings[currentLang][config.nameKey],
+                cost: formatNumber(cost),
+                current: formatNumber(player.upgradePoints)
+            });
+        }
+    }
+    
+    function getEquipmentUpgradeCost(currentLevel, amount) {
+        if (amount <= 0) return 0;
+        const sumOfLevels = (amount / 2) * (2 * (currentLevel + 1) + (amount - 1));
+        const totalCost = 5 * sumOfLevels;
+        return totalCost;
+    }
+
+    function buyEquipment(key) {
+        console.log("Attempting to buy equipment:", key, "Multiplier:", equipmentMultiplier);
+        const currentLevel = player.equipment[key];
+        const cost = getEquipmentUpgradeCost(currentLevel, equipmentMultiplier);
+        console.log("Cost for", key, "x", equipmentMultiplier, ":", cost, "Player gold:", player.gold);
+
+        if (player.gold >= cost) {
+            player.gold -= cost;
+            player.equipment[key] += equipmentMultiplier;
+             logToBattleLog('upgradeLog', {
+                name: languageStrings[currentLang][equipmentConfig[key].nameKey],
+                amount: formatMultiplier(equipmentMultiplier),
+                cost: formatNumber(cost),
+                currency: languageStrings[currentLang].currencyGold
+            });
+            updateAllUI(); 
+        } else {
+            logToBattleLog('notEnoughGoldLog', {
+                name: languageStrings[currentLang][equipmentConfig[key].nameKey],
+                cost: formatNumber(cost),
+                current: formatNumber(player.gold)
+            });
+        }
+    }
+
+    function setupUpgradeUI() {
+        DOMElements.pointUpgradesList.innerHTML = '';
+        for (const key in pointUpgradesConfig) {
+            const config = pointUpgradesConfig[key];
+            const div = document.createElement('div');
+            div.className = 'upgrade-item';
+            div.innerHTML = `
+                <span class="item-name"></span>
+                <span class="item-cost"></span>
+                <button class="upgrade-btn" data-key="${key}"></button>
+            `;
+            DOMElements.pointUpgradesList.appendChild(div);
+            div.querySelector('.upgrade-btn').addEventListener('click', () => buyPointUpgrade(key));
+        }
+
+        DOMElements.equipmentList.innerHTML = '';
+        for (const key in equipmentConfig) {
+            const config = equipmentConfig[key];
+            const div = document.createElement('div');
+            div.className = 'equipment-item';
+            div.innerHTML = `
+                 <span class="item-name"></span>
+                 <span class="item-cost"></span>
+                 <button class="upgrade-btn" data-key="${key}"></button>
+            `;
+            DOMElements.equipmentList.appendChild(div);
+            div.querySelector('.upgrade-btn').addEventListener('click', () => buyEquipment(key));
+        }
+    }
+    
+    function updatePointUpgradesUI() {
+        const lang = languageStrings[currentLang];
+        const upgradeItems = DOMElements.pointUpgradesList.querySelectorAll('.upgrade-item');
+
+        Object.keys(pointUpgradesConfig).forEach((key, index) => {
+            const itemElement = upgradeItems[index];
+            if (!itemElement) {
+                console.warn("Point upgrade item element not found for key:", key, "at index:", index);
+                return;
+            }
+
+            const itemNameSpan = itemElement.querySelector('.item-name');
+            const costEl = itemElement.querySelector('.item-cost');
+            const btnEl = itemElement.querySelector('.upgrade-btn');
+
+            if (!itemNameSpan || !costEl || !btnEl) {
+                console.warn("Child element missing in point upgrade item for key:", key);
+                return;
+            }
+
+
+            const currentLevel = player.upgrades[key];
+            const config = pointUpgradesConfig[key];
+            let amountToBuy = upgradeMultiplier;
+
+            if (config.maxLevel) {
+                 amountToBuy = Math.min(amountToBuy, config.maxLevel - currentLevel);
+            }
+            
+            itemNameSpan.innerHTML = `${lang[config.nameKey]} (Cấp <span id="lvl-${key}">${formatMultiplier(currentLevel)}</span>) <small>${lang[config.benefitKey]} ${config.maxLevel ? `(${lang.maxLevelText}: ${config.maxLevel})` : ''}</small>`;
+            
+            if (config.maxLevel && currentLevel >= config.maxLevel) {
+                 costEl.textContent = lang.maxLevelText;
+                 btnEl.disabled = true;
+                 btnEl.textContent = lang.maxButtonText;
+            } else {
+                 const cost = getPointUpgradeCost(key, currentLevel, amountToBuy);
+                 costEl.textContent = lang.costTextPoints.replace('{cost}', formatNumber(cost));
+                 btnEl.disabled = player.upgradePoints < cost || amountToBuy <=0;
+                 btnEl.textContent = lang.upgradeLevelButton.replace('{amount}', formatMultiplier(amountToBuy));
+            }
+        });
+    }
+
+    function updateEquipmentUpgradesUI() {
+        const lang = languageStrings[currentLang];
+        const equipmentItems = DOMElements.equipmentList.querySelectorAll('.equipment-item');
+
+        Object.keys(equipmentConfig).forEach((key, index) => {
+            const itemElement = equipmentItems[index];
+             if (!itemElement) {
+                console.warn("Equipment item element not found for key:", key, "at index:", index);
+                return;
+            }
+
+            const itemNameSpan = itemElement.querySelector('.item-name');
+            const costEl = itemElement.querySelector('.item-cost');
+            const btnEl = itemElement.querySelector('.upgrade-btn');
+
+            if (!itemNameSpan || !costEl || !btnEl) {
+                console.warn("Child element missing in equipment item for key:", key);
+                return;
+            }
+
+            const currentLevel = player.equipment[key];
+            const config = equipmentConfig[key]; 
+            const cost = getEquipmentUpgradeCost(currentLevel, equipmentMultiplier);
+            
+            itemNameSpan.innerHTML = `${lang[config.nameKey]} (Cấp <span id="lvl-eq-${key}">${formatMultiplier(currentLevel)}</span>) <small>${lang[config.benefitKey]}</small>`;
+            costEl.textContent = lang.costTextGold.replace('{cost}', formatNumber(cost));
+            btnEl.disabled = player.gold < cost;
+            btnEl.textContent = lang.upgradeLevelButton.replace('{amount}', formatMultiplier(equipmentMultiplier));
+        });
+    }
+
+    // --- BATTLE LOGIC ---
+    function startBattle() {
+        console.log("Start Battle button clicked.");
+        if (battleState.inProgress) {
+            console.log("Battle already in progress.");
+            return;
+        }
+        battleState.inProgress = true;
+        
+        generateEnemy(progression.floor); 
+        
+        logToBattleLog('battleStartLog', {floor: progression.floor, enemyName: battleState.enemy.name});
+        DOMElements.fightBtn.disabled = true;
+        updateAllUI(); 
+
+        let playerAttackCooldown = 0;
+        let enemyAttackCooldown = 0;
+        const playerTimePerAttack = 1000 / player.attackSpeed; 
+        const enemyTimePerAttack = 1000 / battleState.enemy.attackSpeed; 
+        const BATTLE_TICK_INTERVAL = 50; 
+
+        if (battleState.regenIntervalId) clearInterval(battleState.regenIntervalId);
+        battleState.regenIntervalId = setInterval(() => {
+            if (!battleState.inProgress) { 
+                clearInterval(battleState.regenIntervalId);
+                battleState.regenIntervalId = null;
+                return;
+            }
+            const healAmount = player.maxHealth * player.healthRegenPerInterval;
+            player.currentHealth = Math.min(player.maxHealth, player.currentHealth + healAmount);
+            updateHealthBars(); 
+        }, 3000); 
+
+        if (battleState.battleIntervalId) clearInterval(battleState.battleIntervalId);
+        battleState.battleIntervalId = setInterval(() => {
+            playerAttackCooldown -= BATTLE_TICK_INTERVAL;
+            if (playerAttackCooldown <= 0) {
+                let damageDealt = player.damage;
+                const isCrit = Math.random() < player.critChance;
+                if (isCrit) damageDealt *= player.critDamageMultiplier;
+                
+                const actualDamageToEnemy = Math.max(1, Math.round(damageDealt) - battleState.enemy.armor);
+                battleState.enemy.currentHealth -= actualDamageToEnemy;
+
+                if (player.lifesteal > 0) {
+                    const healed = actualDamageToEnemy * player.lifesteal;
+                    player.currentHealth = Math.min(player.maxHealth, player.currentHealth + healed);
+                }
+                if (player.onHitHealValue > 0) {
+                    player.currentHealth = Math.min(player.maxHealth, player.currentHealth + player.onHitHealValue);
+                }
+                logToBattleLog('playerAttackLog', {
+                    enemyName: battleState.enemy.name, 
+                    damage: formatNumber(actualDamageToEnemy),
+                    critText: isCrit ? languageStrings[currentLang].critText : ""
+                });
+                playerAttackCooldown = playerTimePerAttack;
+            }
+            
+            if (battleState.enemy.currentHealth <= 0) {
+                winBattle();
+                return;
+            }
+
+            enemyAttackCooldown -= BATTLE_TICK_INTERVAL;
+            if (enemyAttackCooldown <= 0) {
+                const damageTakenByPlayer = Math.max(1, battleState.enemy.damage - player.armor);
+                player.currentHealth -= damageTakenByPlayer;
+                logToBattleLog('enemyAttackLog', {
+                    enemyName: battleState.enemy.name,
+                    damage: formatNumber(damageTakenByPlayer)
+                });
+
+                if (player.thorns > 0) {
+                    const thornDamage = Math.round(damageTakenByPlayer * player.thorns);
+                    if (thornDamage > 0) {
+                        battleState.enemy.currentHealth -= thornDamage;
+                        logToBattleLog('thornsLog', {
+                            damage: formatNumber(thornDamage),
+                            enemyName: battleState.enemy.name
+                        });
+                    }
+                }
+                enemyAttackCooldown = enemyTimePerAttack;
+            }
+            
+            if (battleState.enemy.currentHealth <= 0) { 
+                winBattle();
+                return;
+            }
+            if (player.currentHealth <= 0) {
+                loseBattle();
+                return;
+            }
+            
+            updateHealthBars();
+        }, BATTLE_TICK_INTERVAL);
+    }
+    
+    function clearBattleIntervals() {
+        if (battleState.battleIntervalId) clearInterval(battleState.battleIntervalId);
+        if (battleState.regenIntervalId) clearInterval(battleState.regenIntervalId);
+        battleState.battleIntervalId = null;
+        battleState.regenIntervalId = null;
+    }
+
+    function winBattle() {
+        clearBattleIntervals();
+        logToBattleLog('victoryLog', {floor: progression.floor});
+        
+        const isBoss = battleState.enemy.isBoss;
+        let basePointsWon = isBoss ? 5 : 3;
+        let baseGoldWon = 777 + (progression.floor - 1);
+        let baseExpWon = 777 + (progression.floor - 1);
+
+        let totalPointsWon = Math.round((basePointsWon + player.flatPointBonus) * (1 + player.percentPointBonus));
+        let totalGoldWon = Math.round((baseGoldWon + player.flatGoldBonus) * (1 + player.percentGoldBonus));
+        let totalExpWon = Math.round((baseExpWon + player.flatExpBonus) * (1 + player.percentExpBonus));
+        
+        player.upgradePoints += totalPointsWon;
+        player.gold += totalGoldWon;
+        player.exp += totalExpWon;
+        
+        logToBattleLog('rewardsLog', {
+            points: totalPointsWon,
+            gold: formatNumber(totalGoldWon),
+            exp: formatNumber(totalExpWon)
+        });
+        
+        progression.floor++;
+        endBattle();
+    }
+    
+    function loseBattle() {
+        clearBattleIntervals();
+        player.currentHealth = 0; 
+        logToBattleLog('defeatLog', {floor: progression.floor});
+        const floorsToLose = 5; 
+        progression.floor = Math.max(1, progression.floor - floorsToLose);
+        logToBattleLog('fallbackLog', {floor: progression.floor});
+        endBattle();
+    }
+
+    function endBattle() {
+        battleState.inProgress = false;
+        DOMElements.fightBtn.disabled = false;
+        player.currentHealth = player.maxHealth; 
+        checkLevelUp(); 
+        updateAllUI(); 
+        saveGame();
+    }
+    
+    // --- INITIALIZATION ---
+    function init() {
+        console.log("Initializing game...");
+        const savedLang = localStorage.getItem('rogueliteSelectedLang');
+        if (savedLang) {
+            currentLang = savedLang;
+            console.log("Loaded language from localStorage:", currentLang);
+        }
+
+        loadGame(); 
+        setupUpgradeUI(); 
+        setLanguage(currentLang); // Apply language and update all UI text elements
+        // updateAllUI(); // Called by setLanguage
+
+        DOMElements.langViBtn.addEventListener('click', () => {
+            console.log("VI button clicked");
+            setLanguage('vi');
+        });
+        DOMElements.langEnBtn.addEventListener('click', () => {
+            console.log("EN button clicked");
+            setLanguage('en');
+        });
+        
+        DOMElements.fightBtn.addEventListener('click', startBattle);
+
+        DOMElements.upgradeAmountSelector.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                console.log("Upgrade multiplier button clicked:", e.target.dataset.value);
+                upgradeMultiplier = parseInt(e.target.dataset.value);
+                if (isNaN(upgradeMultiplier)) { // Fallback if parseInt fails
+                    console.error("Invalid upgrade multiplier value:", e.target.dataset.value);
+                    upgradeMultiplier = 1;
+                }
+                DOMElements.upgradeAmountSelector.querySelectorAll('.active').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                updatePointUpgradesUI(); 
+            }
+        });
+
+        DOMElements.equipmentAmountSelector.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                 console.log("Equipment multiplier button clicked:", e.target.dataset.value);
+                equipmentMultiplier = parseInt(e.target.dataset.value);
+                 if (isNaN(equipmentMultiplier)) { // Fallback if parseInt fails
+                    console.error("Invalid equipment multiplier value:", e.target.dataset.value);
+                    equipmentMultiplier = 1;
+                }
+                DOMElements.equipmentAmountSelector.querySelectorAll('.active').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                updateEquipmentUpgradesUI(); 
+            }
+        });
+        
+        if (!localStorage.getItem('rogueliteAutoBattleSave_v2.15')) { 
+             DOMElements.battleLog.innerHTML = ''; 
+             logToBattleLog('gameLoadedLog', {fightBtnStart: languageStrings[currentLang].fightBtnStart});
+        }
+        console.log("Game initialized.");
+    }
+
+    // --- START GAME ---
+    init();
+    </script>
+
+</body>
+</html>
